@@ -1,14 +1,25 @@
 const ethers = require('ethers');
 const fs = require('fs-extra');
+require('dotenv').config();
 
 async function main(){
-    const provider = new ethers.JsonRpcProvider('http://127.0.0.1:7545');
-    const wallet = new ethers.Wallet('0x296b5763c47fbe4c730af10e683696a72babeaf5b23e4fabe26877d2baefc74c', provider);
+    const provider = new ethers.JsonRpcProvider(process.env.URL);
+    const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
     const abi = fs.readFileSync("SimpleStorage_sol_SimpleStorage.abi", 'utf8');
     const binary = fs.readFileSync("SimpleStorage_sol_SimpleStorage.bin", 'utf8');
     const factory = new ethers.ContractFactory(abi, binary, wallet);
-    const contract = await factory.deploy({gasLimit: 3000000, gasPrice: 1000000000});
-    console.log(contract)
+    const contract = await factory.deploy(); 
+    const transaction = await contract.deploymentTransaction(1);
+    const currentFavoriteNumber = await contract.retrieve();
+    console.log(currentFavoriteNumber.toString());
+    const nonce = await wallet.getNonce();
+    const transactionResponse = await contract.store("13", {nonce: nonce});
+    const transactionReceipt = await transactionResponse.wait(1);
+    const updateFavoriteNumber = await contract.retrieve();
+    console.log(updateFavoriteNumber.toString());
 }
 
-main()
+main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+})
